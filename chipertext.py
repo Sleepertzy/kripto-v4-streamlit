@@ -230,7 +230,7 @@ def vernam_ke_hex(teks):
 
 # ==========================================
 
-st.set_page_config(page_title="Tugas Kripto", layout="wide", page_icon="🛡️")
+st.set_page_config(page_title="poly-cipher", layout="wide", page_icon="🛡️")
 
 
 
