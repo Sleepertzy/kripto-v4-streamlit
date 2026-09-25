@@ -470,7 +470,7 @@ def dekripsi_dengan_rsa(pesan_sandi, priv_key, mod_n):
 
 # ==========================================
 
-st.set_page_config(page_title="Tugas Kripto", layout="wide", page_icon="🛡️")
+st.set_page_config(page_title="poly-cipher", layout="wide", page_icon="🛡️")
 
 
 
