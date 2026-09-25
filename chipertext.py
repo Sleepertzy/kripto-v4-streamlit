@@ -1,7 +1,5 @@
 import streamlit as st
 
-import random
-
 
 
 # ==========================================
@@ -126,117 +124,7 @@ def jalankan_vigenere(pesan, kata_kunci, is_enkripsi=True):
 
 # ==========================================
 
-# 3. ALGORITMA RAIL FENCE 
-
-# ==========================================
-
-def enkripsi_jalur_zigzag(pesan, jumlah_baris):
-
-    if jumlah_baris <= 1: return pesan
-
-    # Membuat wadah (list of strings) untuk setiap baris
-
-    wadah_baris = ["" for _ in range(jumlah_baris)]
-
-    baris_sekarang = 0
-
-    arah_turun = False
-
-    
-
-    for karakter in pesan:
-
-        wadah_baris[baris_sekarang] += karakter
-
-        # Balik arah jika mentok di atas atau bawah
-
-        if baris_sekarang == 0 or baris_sekarang == jumlah_baris - 1:
-
-            arah_turun = not arah_turun
-
-        baris_sekarang += 1 if arah_turun else -1
-
-        
-
-    return "".join(wadah_baris)
-
-
-
-def dekripsi_jalur_zigzag(pesan_rahasia, jumlah_baris):
-
-    if jumlah_baris <= 1: return pesan_rahasia
-
-    
-
-    # Membangun pola bintang (*) sebagai cetakan
-
-    cetakan = [["" for _ in range(len(pesan_rahasia))] for _ in range(jumlah_baris)]
-
-    baris_sekarang, kolom_sekarang = 0, 0
-
-    arah_turun = False
-
-    
-
-    for _ in range(len(pesan_rahasia)):
-
-        if baris_sekarang == 0 or baris_sekarang == jumlah_baris - 1:
-
-            arah_turun = not arah_turun
-
-        cetakan[baris_sekarang][kolom_sekarang] = "*"
-
-        kolom_sekarang += 1
-
-        baris_sekarang += 1 if arah_turun else -1
-
-        
-
-    # Mengisi cetakan bintang dengan huruf dari pesan rahasia
-
-    penunjuk_huruf = 0
-
-    for b in range(jumlah_baris):
-
-        for k in range(len(pesan_rahasia)):
-
-            if cetakan[b][k] == "*" and penunjuk_huruf < len(pesan_rahasia):
-
-                cetakan[b][k] = pesan_rahasia[penunjuk_huruf]
-
-                penunjuk_huruf += 1
-
-                
-
-    # Membaca ulang isi cetakan secara zigzag
-
-    teks_asli = []
-
-    baris_sekarang, kolom_sekarang = 0, 0
-
-    arah_turun = False
-
-    for _ in range(len(pesan_rahasia)):
-
-        if baris_sekarang == 0 or baris_sekarang == jumlah_baris - 1:
-
-            arah_turun = not arah_turun
-
-        teks_asli.append(cetakan[baris_sekarang][kolom_sekarang])
-
-        kolom_sekarang += 1
-
-        baris_sekarang += 1 if arah_turun else -1
-
-        
-
-    return "".join(teks_asli)
-
-
-
-# ==========================================
-
-# 4. ALGORITMA RC4 
+# 3. ALGORITMA RC4
 
 # ==========================================
 
@@ -310,7 +198,7 @@ def hitung_rc4(data_teks, kata_kunci_str):
 
 # ==========================================
 
-# 5. ALGORITMA VERNAM XOR (MODERN SEDERHANA)
+# 4. ALGORITMA VERNAM XOR (MODERN SEDERHANA)
 
 def hitung_vernam(data_teks, kata_kunci_str):
     if not kata_kunci_str:
@@ -336,141 +224,13 @@ def vernam_ke_hex(teks):
     return "".join(format(ord(c), "02x") for c in teks)
 
 
-# 5. ALGORITMA RSA 
-
-# ==========================================
-
-def hitung_fpb(bil1, bil2):
-
-    while bil2 != 0:
-
-        bil1, bil2 = bil2, bil1 % bil2
-
-    return bil1
-
-
-
-def hitung_invers_modulo(eksponen, nilai_phi):
-
-    # Menggunakan algoritma Euclidean yang diperluas
-
-    r_lama, r_baru = eksponen, nilai_phi
-
-    s_lama, s_baru = 1, 0
-
-    while r_baru != 0:
-
-        hasil_bagi = r_lama // r_baru
-
-        r_lama, r_baru = r_baru, r_lama - hasil_bagi * r_baru
-
-        s_lama, s_baru = s_baru, s_lama - hasil_bagi * s_baru
-
-    return s_lama % nilai_phi
-
-
-
-def cek_bilangan_prima(angka):
-
-    if angka <= 1: return False
-
-    for pembagi in range(2, int(angka ** 0.5) + 1):
-
-        if angka % pembagi == 0: return False
-
-    return True
-
-
-
-def ciptakan_pasangan_kunci_rsa():
-
-    # Mencari dua bilangan prima acak p dan q
-
-    prima_p = random.choice([x for x in range(11, 50) if cek_bilangan_prima(x)])
-
-    prima_q = random.choice([x for x in range(51, 99) if cek_bilangan_prima(x)])
-
-    
-
-    modulus_n = prima_p * prima_q
-
-    euler_phi = (prima_p - 1) * (prima_q - 1)
-
-    
-
-    # Memilih eksponen publik (e) yang relatif prima dengan phi
-
-    kunci_publik = 3
-
-    while hitung_fpb(kunci_publik, euler_phi) != 1:
-
-        kunci_publik += 2
-
-        
-
-    kunci_privat = hitung_invers_modulo(kunci_publik, euler_phi)
-
-    return kunci_publik, kunci_privat, modulus_n, prima_p, prima_q
-
-
-
-def enkripsi_dengan_rsa(pesan_asli, pub_key, mod_n):
-
-    blok_sandi = []
-
-    catatan_proses = []
-
-    for huruf in pesan_asli:
-
-        nilai_ascii = ord(huruf)
-
-        angka_sandi = pow(nilai_ascii, pub_key, mod_n) # Rumus: (m^e) mod n
-
-        blok_sandi.append(str(angka_sandi))
-
-        catatan_proses.append(f"Huruf '{huruf}' -> ASCII {nilai_ascii}^{pub_key} mod {mod_n} -> {angka_sandi}")
-
-    return " ".join(blok_sandi), catatan_proses
-
-
-
-def dekripsi_dengan_rsa(pesan_sandi, priv_key, mod_n):
-
-    teks_asli = ""
-
-    catatan_proses = []
-
-    daftar_angka = pesan_sandi.split()
-
-    
-
-    for angka_str in daftar_angka:
-
-        try:
-
-            angka_sandi = int(angka_str)
-
-            angka_asli = pow(angka_sandi, priv_key, mod_n) # Rumus: (c^d) mod n
-
-            teks_asli += chr(angka_asli)
-
-            catatan_proses.append(f"Sandi {angka_sandi} -> {angka_sandi}^{priv_key} mod {mod_n} -> ASCII {angka_asli} ('{chr(angka_asli)}')")
-
-        except:
-
-            teks_asli += "?"
-
-    return teks_asli, catatan_proses
-
-
-
 # ==========================================
 
 # ANTARMUKA PENGGUNA STREAMLIT
 
 # ==========================================
 
-st.set_page_config(page_title="poly-cipher", layout="wide", page_icon="🛡️")
+st.set_page_config(page_title="Tugas Kripto", layout="wide", page_icon="🛡️")
 
 
 
@@ -848,3 +608,4 @@ elif pilihan_menu == "Super Enkripsi (Kombinasi)":
                     except:
 
                         st.error("Data dekripsi tidak sesuai format heksadesimal!")
+
