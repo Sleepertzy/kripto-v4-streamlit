@@ -293,7 +293,7 @@ def hex_ke_teks(teks_hex):
 # ==========================================
 
 st.set_page_config(
-    page_title="Tugas Kripto",
+    page_title="Poly-Cipher",
     layout="wide",
     page_icon="🛡️"
 )
