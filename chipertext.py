@@ -686,8 +686,11 @@ elif pilihan_menu == "Algoritma 4: Vernam XOR":
                     teks_awal,
                     kata_kunci
                 )
-
-                hasil_visual = hasil_proses
+                #jika hasil XOR merupakan teks yang dapat dibaca, tampilkan langsung. Jika tidak, tampilkan dalam bentuk Hex.
+                if all(karakter.isprintable() for karakter in hasil_proses):
+                    hasil_visual = hasil_proses
+                else:
+                    hasil_visual = vernam_ke_hex(hasil_proses)
 
                 daftar_log.insert(
                     0,
