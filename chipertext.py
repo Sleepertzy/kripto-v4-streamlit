@@ -331,7 +331,9 @@ if pilihan_menu == "Profil Kelompok":
         "Dosen Pengampu: Bagus Muhammad Akbar, S.T., M.T."
     )
 
-    st.markdown("### Daftar Anggota (Kelompok)")
+    st.markdown("## KRIPTOCOY")
+    
+    st.markdown("### Daftar Anggota")
 
     st.markdown("""
     - **Afiq Fathurrahman** (123240010)
