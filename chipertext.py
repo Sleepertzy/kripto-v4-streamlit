@@ -121,171 +121,103 @@ def jalankan_vigenere(pesan, kata_kunci, is_enkripsi=True):
 # 3. ALGORITMA RC4
 # ==========================================
 
-def hitung_rc4(data_teks, kata_kunci_str):
-    if not kata_kunci_str:
-        return "", ["Kunci RC4 tidak boleh kosong."]
+def _kunci_bytes(kata_kunci):
+    return kata_kunci.encode("utf-8")
 
-    kotak_s = [angka for angka in range(256)]
-    indeks_j = 0
 
-    kunci_ascii = [ord(huruf) for huruf in kata_kunci_str]
-    panjang_k = len(kunci_ascii)
+def hitung_rc4_bytes(data_bytes, kata_kunci_str):
+    """RC4 bekerja pada byte, sehingga aman untuk teks UTF-8."""
+    kunci = _kunci_bytes(kata_kunci_str)
+    if not kunci:
+        return b"", ["Kunci RC4 tidak boleh kosong."]
 
-    catatan_proses = []
-
-    catatan_proses.append("=== RC4 - KEY SCHEDULING ALGORITHM (KSA) ===")
-    catatan_proses.append(f"Kunci: {kata_kunci_str}")
-    catatan_proses.append(
-        f"ASCII kunci: {kunci_ascii}"
-    )
-    catatan_proses.append(
-        "S-box awal berisi nilai 0 sampai 255."
-    )
-    catatan_proses.append(
+    s_box = list(range(256))
+    j = 0
+    logs = [
+        "=== RC4 - KEY SCHEDULING ALGORITHM (KSA) ===",
+        f"Kunci: {kata_kunci_str}",
+        f"Byte kunci UTF-8: {list(kunci)}",
+        "S-box awal berisi nilai 0 sampai 255.",
         "KSA mengacak S-box menggunakan nilai kunci."
-    )
+    ]
+    for i in range(256):
+        j = (j + s_box[i] + kunci[i % len(kunci)]) % 256
+        s_box[i], s_box[j] = s_box[j], s_box[i]
+        logs.append(f"KSA i={i:3d}, j={j:3d}, swap S[{i}] <-> S[{j}]")
 
-    # KSA
-    for indeks_i in range(256):
-        indeks_j = (
-            indeks_j
-            + kotak_s[indeks_i]
-            + kunci_ascii[indeks_i % panjang_k]
-        ) % 256
-
-        kotak_s[indeks_i], kotak_s[indeks_j] = (
-            kotak_s[indeks_j],
-            kotak_s[indeks_i]
+    logs.append(f"S-box setelah KSA (16 nilai pertama): {s_box[:16]}")
+    logs.append("=== RC4 - PSEUDO-RANDOM GENERATION ALGORITHM (PRGA) ===")
+    out = bytearray()
+    i = j = 0
+    for pos, byte_data in enumerate(data_bytes):
+        i = (i + 1) % 256
+        j = (j + s_box[i]) % 256
+        s_box[i], s_box[j] = s_box[j], s_box[i]
+        keystream = s_box[(s_box[i] + s_box[j]) % 256]
+        result = byte_data ^ keystream
+        out.append(result)
+        logs.append(
+            f"Byte {pos + 1}: data {byte_data} (Hex {byte_data:02x}) "
+            f"XOR keystream {keystream} (Hex {keystream:02x}) "
+            f"= {result} (Hex {result:02x}) | i={i}, j={j}"
         )
+    logs.append("RC4 menggunakan XOR; kunci yang sama dipakai kembali saat dekripsi.")
+    return bytes(out), logs
 
-        # Agar log tidak terlalu besar, tetap mencatat semua langkah
-        # tetapi bagian S-box hanya ditampilkan dalam bentuk ringkas.
-        catatan_proses.append(
-            f"KSA i={indeks_i:3d}, j={indeks_j:3d}, "
-            f"swap S[{indeks_i}] <-> S[{indeks_j}]"
+
+def hitung_vernam_bytes(data_bytes, kata_kunci_str):
+    kunci = _kunci_bytes(kata_kunci_str)
+    if not kunci:
+        return b"", ["Kunci Vernam tidak boleh kosong."]
+    hasil = bytes(byte ^ kunci[i % len(kunci)] for i, byte in enumerate(data_bytes))
+    logs = [
+        "=== VERNAM XOR ===",
+        "Rumus: Hasil = Data XOR Kunci",
+        "Untuk dekripsi, XOR kembali dengan kunci yang sama.",
+        "Kunci UTF-8 diulang dari awal apabila data lebih panjang dari kunci."
+    ]
+    for i, byte in enumerate(data_bytes):
+        key_byte = kunci[i % len(kunci)]
+        logs.append(
+            f"Byte {i + 1}: data {byte} (Hex {byte:02x}) "
+            f"XOR kunci {key_byte} (Hex {key_byte:02x}) "
+            f"= {hasil[i]} (Hex {hasil[i]:02x})"
         )
-
-    catatan_proses.append(
-        f"S-box setelah KSA (16 nilai pertama): {kotak_s[:16]}"
-    )
-    catatan_proses.append("=== RC4 - PSEUDO-RANDOM GENERATION ALGORITHM (PRGA) ===")
-    catatan_proses.append(
-        "PRGA menghasilkan keystream, kemudian setiap byte data di-XOR "
-        "dengan byte keystream."
-    )
-
-    pointer_i = 0
-    pointer_j = 0
-    teks_akhir = ""
-
-    for indeks, karakter in enumerate(data_teks):
-        pointer_i = (pointer_i + 1) % 256
-        pointer_j = (pointer_j + kotak_s[pointer_i]) % 256
-
-        kotak_s[pointer_i], kotak_s[pointer_j] = (
-            kotak_s[pointer_j],
-            kotak_s[pointer_i]
-        )
-
-        posisi_keystream = (
-            kotak_s[pointer_i] + kotak_s[pointer_j]
-        ) % 256
-
-        aliran_kunci = kotak_s[posisi_keystream]
-
-        nilai_teks = ord(karakter)
-        nilai_hasil = nilai_teks ^ aliran_kunci
-        karakter_baru = chr(nilai_hasil)
-        teks_akhir += karakter_baru
-
-        catatan_proses.append(
-            f"Byte {indeks + 1}: "
-            f"data ASCII {nilai_teks} (Hex {nilai_teks:02x}) "
-            f"XOR keystream {aliran_kunci} (Hex {aliran_kunci:02x}) "
-            f"= {nilai_hasil} (Hex {nilai_hasil:02x}) | "
-            f"i={pointer_i}, j={pointer_j}"
-        )
-
-    catatan_proses.append(
-        "Karena RC4 menggunakan XOR, proses dengan kunci yang sama "
-        "dapat digunakan kembali untuk dekripsi."
-    )
-
-    return teks_akhir, catatan_proses
+    logs.append(f"Hasil Hex: {hasil.hex()}")
+    return hasil, logs
 
 
-# ==========================================
-# 4. ALGORITMA VERNAM XOR
-# ==========================================
+def hitung_rc4(data_teks, kata_kunci_str):
+    """Kompatibilitas dengan pemanggilan lama; hasil disimpan sebagai byte-string Latin-1."""
+    hasil, logs = hitung_rc4_bytes(data_teks.encode("utf-8"), kata_kunci_str)
+    return hasil.decode("latin-1"), logs
+
 
 def hitung_vernam(data_teks, kata_kunci_str):
-    if not kata_kunci_str:
-        return "", ["Kunci Vernam tidak boleh kosong."]
-
-    teks_akhir = ""
-    catatan_proses = []
-
-    catatan_proses.append("=== VERNAM XOR ===")
-    catatan_proses.append(
-        "Rumus: Hasil = Data XOR Kunci"
-    )
-    catatan_proses.append(
-        "Untuk membalik hasil digunakan operasi XOR dengan kunci yang sama."
-    )
-    catatan_proses.append(
-        "Kunci diulang dari awal apabila panjang data melebihi panjang kunci."
-    )
-
-    for indeks, karakter in enumerate(data_teks):
-        kunci = kata_kunci_str[indeks % len(kata_kunci_str)]
-
-        nilai_teks = ord(karakter)
-        nilai_kunci = ord(kunci)
-        nilai_xor = nilai_teks ^ nilai_kunci
-
-        teks_akhir += chr(nilai_xor)
-
-        catatan_proses.append(
-            f"Byte {indeks + 1}: "
-            f"data {nilai_teks} (Hex {nilai_teks:02x}) "
-            f"XOR kunci '{kunci}' {nilai_kunci} (Hex {nilai_kunci:02x}) "
-            f"= {nilai_xor} (Hex {nilai_xor:02x})"
-        )
-
-    catatan_proses.append(
-        f"Hasil Hex: {vernam_ke_hex(teks_akhir)}"
-    )
-
-    return teks_akhir, catatan_proses
+    """Kompatibilitas dengan pemanggilan lama untuk teks UTF-8."""
+    hasil, logs = hitung_vernam_bytes(data_teks.encode("utf-8"), kata_kunci_str)
+    return hasil.decode("latin-1"), logs
 
 
 def vernam_ke_hex(teks):
-    return "".join(format(ord(c), "02x") for c in teks)
+    # Byte-string Latin-1 dipakai untuk merepresentasikan byte hasil cipher.
+    try:
+        return teks.encode("latin-1").hex()
+    except UnicodeEncodeError:
+        return teks.encode("utf-8").hex()
 
 
 def hex_ke_teks(teks_hex):
-    """
-    Mengubah Hex menjadi karakter/byte string.
-    Dipakai sebelum Vernam atau RC4 agar Hex tidak diproses
-    sebagai karakter '0'-'9' dan 'a'-'f'.
-    """
+    """Mengubah Hex menjadi byte-string Latin-1 agar setiap byte tetap utuh."""
     teks_hex = "".join(teks_hex.split())
-
     if not teks_hex:
         raise ValueError("Input Hex tidak boleh kosong.")
-
     if len(teks_hex) % 2 != 0:
         raise ValueError("Jumlah digit Hex harus genap.")
-
     try:
-        return "".join(
-            chr(int(teks_hex[i:i + 2], 16))
-            for i in range(0, len(teks_hex), 2)
-        )
+        return bytes.fromhex(teks_hex).decode("latin-1")
     except ValueError:
-        raise ValueError(
-            "Input mengandung karakter yang bukan format Hex."
-        )
+        raise ValueError("Input mengandung karakter yang bukan format Hex.")
 
 
 # ==========================================
@@ -330,7 +262,6 @@ if pilihan_menu == "Profil Kelompok":
     st.info(
         "Dosen Pengampu: Bagus Muhammad Akbar, S.T., M.T."
     )
-
     st.markdown("## KRIPTOCOY")
     
     st.markdown("### Daftar Anggota")
@@ -527,25 +458,28 @@ elif pilihan_menu == "Algoritma 3: RC4":
 
         if mode_operasi == "Enkripsi Teks":
 
-            hasil_proses, daftar_log = hitung_rc4(
-                masukan_teks,
+            hasil_proses, daftar_log = hitung_rc4_bytes(
+                masukan_teks.encode("utf-8"),
                 kata_kunci
             )
 
-            hasil_visual = vernam_ke_hex(hasil_proses)
+            hasil_visual = hasil_proses.hex()
 
         else:
 
             try:
 
-                teks_awal = hex_ke_teks(masukan_teks)
+                teks_awal = bytes.fromhex("".join(masukan_teks.split()))
 
-                hasil_proses, daftar_log = hitung_rc4(
+                hasil_proses, daftar_log = hitung_rc4_bytes(
                     teks_awal,
                     kata_kunci
                 )
 
-                hasil_visual = hasil_proses
+                try:
+                    hasil_visual = hasil_proses.decode("utf-8")
+                except UnicodeDecodeError:
+                    hasil_visual = hasil_proses.hex()
 
                 daftar_log.insert(
                     0,
@@ -630,79 +564,38 @@ elif pilihan_menu == "Algoritma 4: Vernam XOR":
     if tombol_proses and masukan_teks and kata_kunci:
 
         if mode_operasi == "Enkripsi Teks":
-
-            # Jika input merupakan Hex hasil RC4, konversikan
-            # kembali menjadi byte sebelum XOR Vernam.
-            input_hex_rc4 = (
-                len(masukan_teks.strip()) % 2 == 0
-                and len(masukan_teks.strip()) > 0
-                and all(
-                    karakter in "0123456789abcdefABCDEF"
-                    for karakter in masukan_teks.strip()
-                )
+            input_bersih = masukan_teks.strip()
+            input_hex = (
+                len(input_bersih) > 0
+                and len(input_bersih) % 2 == 0
+                and all(c in "0123456789abcdefABCDEF" for c in input_bersih)
             )
-
             try:
-
-                if input_hex_rc4:
-
-                    teks_byte = hex_ke_teks(masukan_teks)
-
-                    hasil_proses, daftar_log = hitung_vernam(
-                        teks_byte,
-                        kata_kunci
-                    )
-
-                    daftar_log.insert(
-                        0,
-                        "Input terdeteksi sebagai Hex hasil RC4."
-                    )
-
-                    daftar_log.insert(
-                        1,
-                        f"Hex {masukan_teks.strip()} "
-                        "dikonversi menjadi byte sebelum XOR Vernam."
-                    )
-
-                else:
-
-                    hasil_proses, daftar_log = hitung_vernam(
-                        masukan_teks,
-                        kata_kunci
-                    )
-
-                hasil_visual = vernam_ke_hex(hasil_proses)
-
+                # Input Hex (misalnya keluaran RC4) diproses sebagai byte.
+                # Selain itu, input dianggap sebagai teks UTF-8 biasa.
+                data_bytes = (
+                    bytes.fromhex(input_bersih)
+                    if input_hex
+                    else masukan_teks.encode("utf-8")
+                )
+                hasil_bytes, daftar_log = hitung_vernam_bytes(data_bytes, kata_kunci)
+                hasil_visual = hasil_bytes.hex()
+                if input_hex:
+                    daftar_log.insert(0, "Input terdeteksi sebagai Hex dan dikonversi menjadi byte sebelum XOR Vernam.")
             except ValueError as error:
-
                 st.error(str(error))
                 hasil_visual = None
-
         else:
-
             try:
-
-                teks_awal = hex_ke_teks(masukan_teks)
-
-                hasil_proses, daftar_log = hitung_vernam(
-                    teks_awal,
-                    kata_kunci
-                )
-                #jika hasil XOR merupakan teks yang dapat dibaca, tampilkan langsung. Jika tidak, tampilkan dalam bentuk Hex.
-                if all(karakter.isprintable() for karakter in hasil_proses):
-                    hasil_visual = hasil_proses
-                else:
-                    hasil_visual = vernam_ke_hex(hasil_proses)
-
-                daftar_log.insert(
-                    0,
-                    "Input Hex berhasil dikonversi kembali "
-                    "menjadi byte asli sebelum XOR Vernam."
-                )
-
+                data_bytes = bytes.fromhex("".join(masukan_teks.split()))
+                hasil_bytes, daftar_log = hitung_vernam_bytes(data_bytes, kata_kunci)
+                try:
+                    hasil_visual = hasil_bytes.decode("utf-8")
+                except UnicodeDecodeError:
+                    hasil_visual = hasil_bytes.hex()
+                daftar_log.insert(0, "Input Hex dikonversi menjadi byte sebelum XOR Vernam.")
             except ValueError as error:
-
-                st.error(str(error))
+                st.error("Input harus berupa Hex dengan jumlah digit genap.")
                 hasil_visual = None
 
         if hasil_visual is not None:
@@ -851,12 +744,12 @@ elif pilihan_menu == "Super Enkripsi (Kombinasi)":
                     # LAPIS 3 - RC4
                     # --------------------------------------
 
-                    lapis3, log_rc4 = hitung_rc4(
-                        lapis2,
+                    lapis3_bytes, log_rc4 = hitung_rc4_bytes(
+                        lapis2.encode("utf-8"),
                         kunci_rc4_valid
                     )
 
-                    lapis3_hex = vernam_ke_hex(lapis3)
+                    lapis3_hex = lapis3_bytes.hex()
 
                     st.info(
                         f"**Lapis 3 (RC4 - Stream):** {lapis3_hex}"
@@ -866,12 +759,12 @@ elif pilihan_menu == "Super Enkripsi (Kombinasi)":
                     # LAPIS 4 - VERNAM
                     # --------------------------------------
 
-                    lapis4, log_vernam = hitung_vernam(
-                        lapis3,
+                    lapis4_bytes, log_vernam = hitung_vernam_bytes(
+                        lapis3_bytes,
                         kunci_vernam_valid
                     )
 
-                    hasil_final = vernam_ke_hex(lapis4)
+                    hasil_final = lapis4_bytes.hex()
 
                     st.success(
                         "**Lapis 4 Final (Vernam XOR):**"
@@ -941,44 +834,45 @@ Log berikut menampilkan proses dari masing-masing lapisan secara berurutan.
 
                     try:
 
-                        cipher_bytes = hex_ke_teks(
-                            masukan_teks
+                        cipher_bytes = bytes.fromhex(
+                            "".join(masukan_teks.split())
                         )
 
                         # ----------------------------------
                         # BALIK LAPIS 4 - VERNAM
                         # ----------------------------------
 
-                        lapis1, log_vernam = hitung_vernam(
+                        lapis1, log_vernam = hitung_vernam_bytes(
                             cipher_bytes,
                             kunci_vernam_valid
                         )
 
                         st.info(
                             "**Lapis 1 Buka Vernam (XOR):** "
-                            f"{vernam_ke_hex(lapis1)}"
+                            f"{lapis1.hex()}"
                         )
 
                         # ----------------------------------
                         # BALIK LAPIS 3 - RC4
                         # ----------------------------------
 
-                        lapis2, log_rc4 = hitung_rc4(
+                        lapis2, log_rc4 = hitung_rc4_bytes(
                             lapis1,
                             kunci_rc4_valid
                         )
 
                         st.info(
                             "**Lapis 2 Buka RC4 (Stream):** "
-                            f"{vernam_ke_hex(lapis2)}"
+                            f"{lapis2.hex()}"
                         )
 
                         # ----------------------------------
                         # BALIK LAPIS 2 - VIGENERE
                         # ----------------------------------
 
+                        lapis2_teks = lapis2.decode("utf-8")
                         lapis3, log_vigenere = jalankan_vigenere(
-                            lapis2,
+                            lapis2_teks,
                             kunci_v_valid,
                             False
                         )
